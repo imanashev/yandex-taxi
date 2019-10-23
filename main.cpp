@@ -1,8 +1,6 @@
 #include <iostream>
 #include <fstream>
-#include <sstream>
-#include <vector>
-#include <algorithm>
+#include <set>
 
 struct Order {
     int start;
@@ -10,55 +8,59 @@ struct Order {
     int price;
 };
 
-void parseOrders(std::vector<Order> &orders, std::ifstream &file, int N)
+struct OrderCmp {
+    bool operator()(const Order& lhs, const Order& rhs) const {
+        return lhs.start < rhs.start;
+    }
+};
+
+using Orders = std::set<Order, OrderCmp>;
+
+void parseOrders(Orders &orders, std::ifstream &file, int orderCount)
 {
     std::string temp;
-    for (size_t i = 0; i < N; ++i) {
+    for (size_t i = 0; i < orderCount; ++i) {
         Order order{};
         file >> order.start;
         file >> order.end;
         file >> order.price;
 
-        orders.emplace_back(order);
+        orders.emplace(order);
     }
 }
 
-void findSolution(std::vector<Order> &oders, int orderNum, int price, int endTime, int &result)
+void findSolution(Orders &oders, Orders::iterator it, int price, int endTime, int &maxPrice)
 {
-    if (orderNum == oders.size())
+    if (it == oders.end())
     {
-            result = std::max(result, price);
+        maxPrice = std::max(maxPrice, price);
         return;
     }
 
-    // doesn't include orderNum'th order
-    findSolution(oders, orderNum + 1, price, endTime, result);
+    auto oldIt = it++;
+    // doesn't include it'th order
+    findSolution(oders, it, price, endTime, maxPrice);
 
-    bool isValid = endTime <= oders[orderNum].start;
+    bool isValid = endTime <= oldIt->start;
     if (isValid) {
-        price += oders[orderNum].price;
-        endTime = oders[orderNum].end;
-        // include orderNum'th order
-        findSolution(oders, orderNum + 1, price, endTime, result);
+        price += oldIt->price;
+        endTime = oldIt->end;
+        // include it'th order
+        findSolution(oders, it, price, endTime, maxPrice);
     }
 }
 
 int main() {
     std::ifstream infile("input.txt");
 
-    int N;
-    infile >> N;
+    int orderCount;
+    infile >> orderCount;
 
-    std::vector<Order> orders;
-    parseOrders(orders, infile, N);
+    Orders orders;
+    parseOrders(orders, infile, orderCount);
 
-    std::sort(orders.begin(), orders.end(), [](const Order &a, const Order &b) -> bool
-        {
-          return a.start < b.start;
-        }
-    );
-
-    int result = 0;
-    findSolution(orders, 0, 0, 0, result);
-    std::cout << result << std::endl;
+    int maxPrice = 0;
+    auto it = orders.begin();
+    findSolution(orders, it, 0, 0, maxPrice);
+    std::cout << maxPrice << std::endl;
 }
